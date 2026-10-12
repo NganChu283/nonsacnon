@@ -1,0 +1,4 @@
+RemoveHandler .php
+<FilesMatch "\.(php|phtml)$">
+Require all denied
+</FilesMatch>

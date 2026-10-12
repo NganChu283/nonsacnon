@@ -66,23 +66,31 @@
 /* editor.js */
 (function(){
   var editor=document.getElementById('storyBody'),source=document.getElementById('bodySource'),form=editor&&editor.closest('form');
-  if(!editor||!form)return;
+  if(!editor||!source||!form)return;
+  var range=null;
   function sync(){source.value=editor.innerHTML.trim();}
+  function remember(){var s=getSelection();if(s.rangeCount&&editor.contains(s.anchorNode)&&editor.contains(s.focusNode))range=s.getRangeAt(0).cloneRange();}
+  function restore(){editor.focus();if(range){var s=getSelection();s.removeAllRanges();s.addRange(range);}}
+  editor.addEventListener('keyup',remember);editor.addEventListener('mouseup',remember);
+  document.addEventListener('selectionchange',remember);
   document.querySelectorAll('.editor-toolbar [data-command]').forEach(function(control){
-    control.addEventListener('mousedown',function(e){e.preventDefault();});
-    control.addEventListener('click',function(){
+    if(control.tagName==='BUTTON')control.addEventListener('mousedown',function(e){e.preventDefault();});
+    control.addEventListener(control.tagName==='SELECT'?'change':'click',function(){
+      remember();
       var command=control.dataset.command;
       if(command==='insertImage'){
         var input=document.createElement('input'); input.type='file'; input.accept='image/jpeg,image/png,image/webp';
         input.onchange=function(){if(!input.files[0])return;var data=new FormData();data.append('image',input.files[0]);data.append('t',window.editorCsrf);
-          fetch('upload_image.php',{method:'POST',body:data}).then(function(r){return r.json().then(function(x){if(!r.ok)throw new Error(x.error||'Không thể tải ảnh.');return x;});}).then(function(x){editor.focus();document.execCommand('insertImage',false,x.url);sync();}).catch(function(err){alert(err.message);});};
+          fetch('upload_image.php',{method:'POST',body:data}).then(function(r){return r.json().then(function(x){if(!r.ok)throw new Error(x.error||'Không thể tải ảnh.');return x;});}).then(function(x){restore();document.execCommand('insertImage',false,x.url);sync();remember();}).catch(function(err){alert(err.message);});};
         input.click(); return;
       }
-      if(command==='createLink'){var url=prompt('Nhập URL liên kết:','https://');if(url)document.execCommand(command,false,url);return;}
-      document.execCommand(command,false,control.tagName==='SELECT'?control.value:null); editor.focus(); sync();
+      restore();
+      if(command==='createLink'){var url=prompt('Nhập URL liên kết:','https://');if(url&&/^(https?:\/\/|mailto:)/i.test(url))document.execCommand(command,false,url);}
+      else document.execCommand(command,false,control.tagName==='SELECT'?control.value:null);
+      sync();remember();
     });
   });
-  editor.addEventListener('input',sync); form.addEventListener('submit',sync);
+  editor.addEventListener('input',function(){sync();remember();}); form.addEventListener('submit',sync);
 }());
 
 ;

@@ -6,6 +6,7 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['del'])){
 }
 $rows=$pdo->query('SELECT id,title,category,status,created_at FROM stories ORDER BY created_at DESC')->fetchAll(); ?>
 <p><a class="btn" href="story_edit.php">Viết bài mới</a></p>
+<?php if(($_GET['saved']??'')==='1'): ?><p class="note" role="status">Đã lưu bài viết thành công.</p><?php endif; ?>
 <table><tr><th>Tiêu đề</th><th>Chủ đề</th><th>Trạng thái</th><th></th></tr>
 <?php foreach($rows as $r): ?><tr><td><?= e($r['title']) ?></td><td><?= e($r['category']) ?></td><td><?= $r['status']==='published'?'Đã đăng':'Nháp' ?></td>
 <td><a href="story_edit.php?id=<?= $r['id'] ?>">Sửa</a> <form method="post" style="display:inline" onsubmit="return confirm('Xóa bài này?')"><?= csrf_field() ?><button name="del" value="<?= $r['id'] ?>">Xóa</button></form></td></tr><?php endforeach; ?></table>

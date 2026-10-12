@@ -101,7 +101,7 @@ function save_upload($f){ // Xử lý ảnh bằng Imagick hoặc GD, tối đa 
 }
 function sanitize_rich_text($html){
   $html=str_replace('../assets/uploads/','assets/uploads/',$html);
-  $html=strip_tags((string)$html,'<p><br><strong><em><u><s><h2><h3><ul><ol><li><blockquote><a><img><div><span>');
+  $html=strip_tags((string)$html,'<p><br><b><i><strong><em><u><s><h2><h3><ul><ol><li><blockquote><a><img><div><span>');
   $html=preg_replace('/\s+on\w+\s*=\s*(["\']).*?\1/iu','',$html);
   $html=preg_replace('/javascript\s*:/iu','',$html);
   $html=preg_replace_callback('/<([a-z0-9]+)([^>]*)>/i',function($m){
@@ -112,7 +112,17 @@ function sanitize_rich_text($html){
       $name=strtolower($a[1]); $value=$a[3];
       if($name==='href' && !preg_match('#^(https?://|mailto:)#i',$value)) continue;
       if($name==='src' && !preg_match('#^(assets/uploads/|https?://)#i',$value)) continue;
-      if($name==='style'){$value=preg_replace('/(?!text-align\s*:\s*(left|center|right|justify)\s*;?)[^;]+;?/i','',$value); if(trim($value)==='') continue;}
+      if($name==='style'){
+        $styles=[];
+        foreach(explode(';',html_entity_decode($value,ENT_QUOTES|ENT_HTML5,'UTF-8')) as $declaration){
+          if(preg_match('/^\s*(text-align|font-weight|font-style|text-decoration(?:-line)?)\s*:\s*(.*?)\s*$/i',$declaration,$css)){
+            $property=strtolower($css[1]); $setting=strtolower($css[2]);
+            $values=['text-align'=>['left','center','right','justify'],'font-weight'=>['normal','bold','400','700'],'font-style'=>['normal','italic'],'text-decoration'=>['none','underline','line-through','underline line-through'],'text-decoration-line'=>['none','underline','line-through','underline line-through']];
+            if(in_array($setting,$values[$property],true)) $styles[]=$property.': '.$setting;
+          }
+        }
+        $value=implode('; ',$styles); if($value==='') continue;
+      }
       $allowed.=' '.$name.'="'.e($value).'"';
     }
     return '<'.$tag.$allowed.'>';

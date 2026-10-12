@@ -1,4 +1,4 @@
-<?php require __DIR__.'/_layout.php'; admin_head('Bài viết','stories'); post_guard();
+<?php require __DIR__.'/_layout.php'; require_perm('stories'); post_guard();
 $id=(int)($_GET['id']??0); $s=['title'=>'','category'=>CATS[0],'excerpt'=>'','body'=>'','status'=>'draft','tone'=>'red'];
 if($id){ $q=$pdo->prepare('SELECT * FROM stories WHERE id=?'); $q->execute([$id]); $s=$q->fetch() ?: exit('Không tìm thấy bài.'); }
 $err='';
@@ -10,16 +10,17 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   $s['tone']=array_key_exists($_POST['tone']??'',TONES)?$_POST['tone']:'red';
   if($s['title']===''||$s['body']==='') $err='Cần có tiêu đề và nội dung.';
   else {
-    $base=slugify($s['title']); $slug=$base; $n=1;
-    while(true){ $q=$pdo->prepare('SELECT COUNT(*) FROM stories WHERE slug=? AND id<>?'); $q->execute([$slug,$id]); if(!$q->fetchColumn()) break; $slug=$base.'-'.(++$n); }
     try {
+      $base=slugify($s['title']); $slug=$base; $n=1;
+      while(true){ $q=$pdo->prepare('SELECT COUNT(*) FROM stories WHERE slug=? AND id<>?'); $q->execute([$slug,$id]); if(!$q->fetchColumn()) break; $slug=$base.'-'.(++$n); }
       $img=save_upload('cover');
       if($id) $pdo->prepare('UPDATE stories SET slug=?,title=?,category=?,excerpt=?,body=?,status=?,tone=?,cover_image=COALESCE(?,cover_image) WHERE id=?')->execute([$slug,$s['title'],$s['category'],$s['excerpt'],$s['body'],$s['status'],$s['tone'],$img,$id]);
       else $pdo->prepare('INSERT INTO stories(slug,title,category,excerpt,body,status,tone,cover_image,author_id) VALUES(?,?,?,?,?,?,?,?,?)')->execute([$slug,$s['title'],$s['category'],$s['excerpt'],$s['body'],$s['status'],$s['tone'],$img,user()['id']]);
-      header('Location: stories.php'); exit;
-    } catch(RuntimeException $ex) { $err=$ex->getMessage(); }
+      header('Location: stories.php?saved=1',true,303); exit;
+    } catch(Throwable $ex) { $err=$ex instanceof RuntimeException && !($ex instanceof PDOException) ? $ex->getMessage() : admin_save_error($ex); }
   }
-} ?>
+}
+admin_head('Bài viết','stories'); ?>
 <?php if($err) echo '<p class="note err">'.e($err).'</p>'; ?>
 <form class="form" method="post" enctype="multipart/form-data"><?= csrf_field() ?>
 <label>Tiêu đề<input name="title" required value="<?= e($s['title']) ?>"/></label>
